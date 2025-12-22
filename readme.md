@@ -1,4 +1,4 @@
-# koishi-plugin-anime-convention-lizard
+# koishi-plugin-anime-convention-lizard（api不再维护，此项目废弃）
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-anime-convention-lizard?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-anime-convention-lizard)
 
