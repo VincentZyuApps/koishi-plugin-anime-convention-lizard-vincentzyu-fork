@@ -1,8 +1,12 @@
-# koishi-plugin-anime-convention-lizard（api不再维护，此项目废弃）
+# koishi-plugin-anime-convention-lizard(提供开源可自托管自建api)
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-anime-convention-lizard?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-anime-convention-lizard)
 
 # 🎉 开箱即用的漫展查询插件
+
+## 预览
+![list](https://gitee.com/vincent-zyu/koishi-plugin-anime-convention-lizard-vincentzyu-fork/releases/download/preview/list.png) 
+![detail](https://gitee.com/vincent-zyu/koishi-plugin-anime-convention-lizard-vincentzyu-fork/releases/download/preview/detail.png)
 
 ## 简介
 - **anime-convention-lizard** 是一款针对漫展查询与订阅的 Koishi 插件，对接无差别同人站/CPP，通过简单的指令快速查询城市或主题相关的漫展，并提供订阅与管理功能。
