@@ -1,7 +1,7 @@
 {
-  "name": "koishi-plugin-anime-convention-lizard",
+  "name": "koishi-plugin-anime-convention-lizard-vincentzyu-fork",
   "description": "查询某个城市即将开始的漫展或查询相关动漫的漫展，提供订阅服务",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lizard0126/anime-convention-lizard.git"
