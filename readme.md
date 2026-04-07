@@ -1,14 +1,21 @@
+![koishi-plugin-anime-convention-lizard-vincentzyu-fork](https://socialify.git.ci/VincentZyuApps/koishi-plugin-anime-convention-lizard-vincentzyu-fork/image?custom_description=%F0%9F%A6%8E%E2%9C%A8+%E5%9F%BA%E4%BA%8EKoishi+%E7%9A%84%E6%BC%AB%E5%B1%95%E6%9F%A5%E8%AF%A2%E4%B8%8E%E8%AE%A2%E9%98%85%E6%8F%92%E4%BB%B6%EF%BD%9C%E5%AF%B9%E6%8E%A5%E6%97%A0%E5%B7%AE%E5%88%AB%E5%90%8C%E4%BA%BA%E7%AB%99%28allcpp.cn%29%EF%BC%8C%E6%94%AF%E6%8C%81%E5%9F%8E%E5%B8%82%2F%E4%B8%BB%E9%A2%98%E7%AD%89%E5%A4%9A%E7%BB%B4%E6%90%9C%E7%B4%A2%E3%80%81%E5%85%B3%E9%94%AE%E8%AF%8D%E8%AE%A2%E9%98%85%E6%8E%A8%E9%80%81%E3%80%81Puppeteer+%E7%B2%BE%E7%BE%8E%E5%9B%BE%E7%89%87%E6%B8%B2%E6%9F%93%E3%80%81%E8%87%AA%E5%AE%9A%E4%B9%89%E5%AD%97%E4%BD%93%E4%B8%8E%E6%B7%B1%E8%89%B2%E6%A8%A1%E5%BC%8F&description=1&font=Bitter&forks=1&issues=1&language=1&logo=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Ff%2Ff3%2FKoishi.js_Logo.png&name=1&owner=1&pulls=1&stargazers=1&theme=Auto)
+
 # koishi-plugin-anime-convention-lizard-vincentzyu-fork
-> **上游仓库**：[https://github.com/lizard0126/anime-convention-lizard](https://github.com/lizard0126/anime-convention-lizard)
+**anime-convention-lizard-vincentzyu-fork** 是一款针对漫展查询与订阅的 Koishi 插件。对接 **无差别同人站 (www.allcpp.cn)**，通过简单的指令快速查询城市或主题相关的漫展，并提供订阅与管理功能。
 
-## 💬 反馈与交流
-- **QQ 交流群**：259248174
-
-## 🎉 开箱即用的漫展查询插件
 [![npm](https://img.shields.io/npm/v/koishi-plugin-anime-convention-lizard-vincentzyu-fork?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-anime-convention-lizard-vincentzyu-fork)
 [![npm-download](https://img.shields.io/npm/dm/koishi-plugin-anime-convention-lizard-vincentzyu-fork?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-anime-convention-lizard-vincentzyu-fork)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/VincentZyuApps/koishi-plugin-anime-convention-lizard-vincentzyu-fork)
+[![Gitee](https://img.shields.io/badge/Gitee-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/vincent-zyu/koishi-plugin-anime-convention-lizard-vincentzyu-fork)
 
-**anime-convention-lizard-vincentzyu-fork** 是一款针对漫展查询与订阅的 Koishi 插件。对接 **无差别同人站 (www.allcpp.cn)**，通过简单的指令快速查询城市或主题相关的漫展，并提供订阅与管理功能。
+
+> **上游仓库**：[https://github.com/lizard0126/anime-convention-lizard](https://github.com/lizard0126/anime-convention-lizard)
+
+<p><del>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>259248174</b>   🎉（这个群G了</del> </p> 
+<p>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>1085190201</b> 🎉</p>
+<p>💡 在群里直接艾特我，回复的更快哦~ ✨</p>
+
+
 
 ---
 
