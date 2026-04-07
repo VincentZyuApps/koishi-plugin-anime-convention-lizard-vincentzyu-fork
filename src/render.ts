@@ -3,6 +3,33 @@ import {} from 'koishi-plugin-puppeteer'
 import { existsSync, readFileSync } from 'fs'
 import { extname, isAbsolute, resolve } from 'path'
 
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 1000
+
+async function getPageWithRetry(ctx: Context) {
+  let lastError: Error | null = null
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const puppeteer = ctx.puppeteer as any
+      if (!puppeteer.browser?.connected) {
+        ctx.logger.warn(`Browser not connected, attempt ${attempt}/${MAX_RETRIES}`)
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+        continue
+      }
+      return await ctx.puppeteer.page()
+    } catch (error) {
+      lastError = error as Error
+      ctx.logger.warn(`Page creation failed (attempt ${attempt}/${MAX_RETRIES}): ${error}`)
+      if (attempt < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+      }
+    }
+  }
+  
+  throw lastError || new Error('Failed to create page after retries')
+}
+
 export interface EventData {
   name: string
   location: string
@@ -759,7 +786,7 @@ export async function renderEventsImage(
   imageDisplayMode: 'none' | 'compact' | 'gradient' | 'flip-horizontal' | 'full-blur-bg-text' = 'compact',
   customFontPath?: string | null
 ): Promise<string> {
-  const browserPage = await ctx.puppeteer.page()
+  const browserPage = await getPageWithRetry(ctx)
   const colors = getColors(enableDarkMode)
   const customFont = buildCustomFontConfig(ctx, customFontPath ?? null)
   
@@ -1202,7 +1229,7 @@ export async function renderEventDetailImage(
   enableDarkMode: boolean = false,
   customFontPath?: string | null
 ): Promise<string> {
-  const browserPage = await ctx.puppeteer.page()
+  const browserPage = await getPageWithRetry(ctx)
   const viewportWidth = 700
   const colors = getColors(enableDarkMode)
   const customFont = buildCustomFontConfig(ctx, customFontPath ?? null)

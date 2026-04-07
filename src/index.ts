@@ -1,5 +1,6 @@
 import { Context, Schema, Session, h } from 'koishi';
 import { renderEventsImage, renderEventDetailImage, EventData } from './render';
+import { searchEvents, ApiConfig } from './api';
 import {} from 'koishi-plugin-puppeteer';
 
 export const inject = {
@@ -15,78 +16,93 @@ const pkg = JSON.parse(
 )
 
 export const usage = `
-<h1>Koishi 插件：anime-convention-lizard-vincentzyu-fork 漫展查询</h1>
+<h1>🦎✨ Koishi 插件：anime-convention-lizard-vincentzyu-fork 漫展查询 🎪🎌</h1>
 <h2>🎯 插件版本：<span style="color: #ff6b6b; font-weight: bold;">v${pkg.version}</span></h2>
 
-> **上游仓库**：[https://github.com/lizard0126/anime-convention-lizard](https://github.com/lizard0126/anime-convention-lizard)
+> **🔗 上游仓库**：[https://github.com/lizard0126/anime-convention-lizard](https://github.com/lizard0126/anime-convention-lizard)
 
-## 💬 反馈与交流
-- **QQ 交流群**：<b style="color: #50c878;">259248174</b>
-
----
-
-## 🎉 开箱即用的漫展查询插件
-**anime-convention-lizard-vincentzyu-fork** 是一款针对漫展查询与订阅的 Koishi 插件。对接 **无差别同人站 (www.allcpp.cn)**，通过简单的指令快速查询城市或主题相关的漫展，并提供订阅与管理功能。
+## 💬💭 反馈与交流
+- **🐧 QQ 交流群**：<b style="color: #50c878;">259248174</b>
+- **💖 如果你喜欢这个插件，欢迎点个 Star 支持一下！**
 
 ---
 
-## ✨ 特性
-- 🔍 **多维查询**：支持按城市名或漫展主题关键词进行搜索。
-- 📅 **订阅系统**：订阅感兴趣的关键词，一键获取所有关注城市的漫展动态。
-- 🖼️ **精美渲染**：支持通过 Puppeteer 将查询结果渲染为精美图片（可选）。
-- 🔤 **自定义字体**：支持加载本地字体文件，让图片渲染更符合你的审美。
-- 🚀 **自托管后端**：支持配置自定义后端 API，稳定可靠。
+## 🎉🌟 开箱即用的漫展查询插件
+**🦎 anime-convention-lizard-vincentzyu-fork** 是一款针对漫展查询与订阅的 Koishi 插件。对接 **🌐 无差别同人站 (www.allcpp.cn)**，通过简单的指令快速查询城市或主题相关的漫展，并提供订阅与管理功能。
 
-## 🔍 预览
-[你可以前往README查看预览图片 → https://gitee.com/vincent-zyu/koishi-plugin-anime-convention-lizard-vincentzyu-fork](https://gitee.com/vincent-zyu/koishi-plugin-anime-convention-lizard-vincentzyu-fork) 
+🎭 **漫展信息全覆盖** · 🏙️ **城市精准定位** · 🎨 **主题智能匹配**
 
 ---
 
-## 📦 安装与依赖
-### 🛠️ 前置依赖
-- <b style="color: #f44336; font-size: 1.2em;">必须依赖</b>：\`database\` (用于存储订阅信息)
-- <b style="color: #ff9800; font-size: 1.2em;">可选依赖</b>：\`puppeteer\` (用于图片渲染功能)
-  - **推荐安装**：\`koishi-plugin-puppeteer\` 或 \`@shangxueink/koishi-plugin-puppeteer-without-canvas\`
-  - **安装方式**：
-    - 🧩 **webui**：在 左侧 \`依赖管理\` 中直接搜索包名安装。
-    - 💻 **命令行**：\`npm install 包名\` 或 \`yarn add 包名\`。
+## ✨🌈 特性亮点
+- 🔍🔎 **多维查询**：支持按城市名或漫展主题关键词进行搜索，快速定位目标漫展。
+- 📅🔔 **订阅系统**：订阅感兴趣的关键词，一键获取所有关注城市的漫展动态，再也不用错过心仪活动！
+- 🖼️🎨 **精美渲染**：支持通过 Puppeteer 将查询结果渲染为精美图片（可选），分享更方便。
+- 🔤✒️ **自定义字体**：支持加载本地字体文件，让图片渲染更符合你的审美风格。
+- 🚀🏠 **自托管后端**：支持配置自定义后端 API，数据更稳定可靠。
+- 🌙🌓 **深色模式**：支持切换深色主题，夜间使用更护眼。
+
+## 🔍👀 效果预览
+[你可以前往 README 查看预览图片 → https://gitee.com/vincent-zyu/koishi-plugin-anime-convention-lizard-vincentzyu-fork](https://gitee.com/vincent-zyu/koishi-plugin-anime-convention-lizard-vincentzyu-fork) 
 
 ---
 
-## ⚙️ 配置说明
+## 📦📂 安装与依赖指南
+### 🛠️⚡ 前置依赖清单
+- <b style="color: #f44336; font-size: 1.2em;">🔴 必须依赖</b>：\`database\` —— 用于存储用户的订阅信息
+- <b style="color: #ff9800; font-size: 1.2em;">🟡 可选依赖</b>：\`puppeteer\` —— 用于图片渲染功能（强烈建议安装以获得最佳体验）
+  - **👍 推荐安装**：\`koishi-plugin-puppeteer\` 或 \`@shangxueink/koishi-plugin-puppeteer-without-canvas\`
+  - **📥 安装方式**：
+    - 🧩 **WebUI 安装**：在左侧 \`依赖管理\` 中直接搜索包名点击安装即可。
+    - 💻 **命令行安装**：\`npm install 包名\` 或 \`yarn add 包名\`。
 
-### 🔗 后端 API
-本插件默认使用作者提供的公共 API。如果你希望自托管后端，可以前往 [allcpp-search-go](https://github.com/VincentZyu233/allcpp-search-go) 下载。
+---
 
-### 🔤 字体设置
+## ⚙️🎛️ 配置说明详解
+
+### 🔗🌐 后端 API 配置
+本插件默认使用作者提供的公共 API。如果你希望自托管后端以获取更稳定的服务，可以前往 [allcpp-search-go](https://github.com/VincentZyu233/allcpp-search-go) 下载部署。
+
+📡 **三种请求模式**：
+- 🔄 **Proxy 模式**：通过远程中转服务器转发请求
+- 🏠 **Local 模式**：直接请求 allcpp.cn 官网
+- 🌍 **Distributed 模式**：请求本地部署的 Go 后端
+
+### 🔤✒️ 字体设置指南
 你可以手动下载字体文件，并在插件配置项中填写字体的**绝对路径**。
 
-**推荐字体：**
-- [落霞孤鹜文楷 LXGW WenKai Mono → *(https://gitee.com/vincent-zyu/koishi-plugin-onebot-info-image/releases/download/font/LXGWWenKaiMono-Regular.ttf)* ](https://gitee.com/vincent-zyu/koishi-plugin-onebot-info-image/releases/download/font/LXGWWenKaiMono-Regular.ttf)
-- [思源宋体 Source Han Serif SC → *(https://gitee.com/vincent-zyu/koishi-plugin-onebot-info-image/releases/download/font/SourceHanSerifSC-Medium.otf)* ](https://gitee.com/vincent-zyu/koishi-plugin-onebot-info-image/releases/download/font/SourceHanSerifSC-Medium.otf)
+**🎨 推荐字体下载**：
+- 📖 **落霞孤鹜文楷 LXGW WenKai Mono** → [点击下载](https://gitee.com/vincent-zyu/koishi-plugin-onebot-info-image/releases/download/font/LXGWWenKaiMono-Regular.ttf)
+- 🖋️ **思源宋体 Source Han Serif SC** → [点击下载](https://gitee.com/vincent-zyu/koishi-plugin-onebot-info-image/releases/download/font/SourceHanSerifSC-Medium.otf)
 
-> 💡 **提示**：如未填写或路径无效，将自动回退为系统默认字体。
-
----
-
-## 📖 使用方法
-
-### 🔍 漫展查询
-- \`漫展 查询 <关键词>\`：查询指定城市或主题的漫展
-- \`漫展 一键查询\`：查询所有已订阅关键词的漫展
-- \`漫展 图片查询 <关键词>\`：以图片形式展示查询结果
-- \`漫展 一键图片查询\`：以图片形式展示所有订阅结果
-
-### 📌 订阅管理
-- \`漫展 订阅 <关键词>\`：订阅指定关键词
-- \`漫展 取消订阅 <关键词>\`：取消订阅指定关键词
-- \`漫展 取消订阅\`：清空所有订阅
-- \`漫展 订阅列表\`：查看当前订阅的关键词
+> 💡✨ **温馨提示**：如未填写字体路径或路径无效，系统将自动回退为默认字体。
 
 ---
 
-## ☕ 原作者留下的
-如果这个插件对你有帮助，可以[请我喝杯可乐🥤 → *(https://ifdian.net/a/lizard0126)* ](https://ifdian.net/a/lizard0126)
+## 📖📝 使用教程
+
+### 🔍🎪 漫展查询指令
+| 指令 | 功能说明 |
+|------|---------|
+| \`漫展 查询 <关键词>\` | 🔎 查询指定城市或主题的漫展信息 |
+| \`漫展 一键查询\` | 📅 查询所有已订阅关键词的漫展列表 |
+| \`漫展 图片查询 <关键词>\` | 🖼️ 以精美图片形式展示查询结果 |
+| \`漫展 一键图片查询\` | 📦 以图片形式展示所有订阅的漫展结果 |
+
+### 📌📋 订阅管理指令
+| 指令 | 功能说明 |
+|------|---------|
+| \`漫展 订阅 <关键词>\` | ➕ 订阅指定关键词的漫展信息 |
+| \`漫展 取消订阅 <关键词>\` | ➖ 取消订阅指定关键词 |
+| \`漫展 取消订阅\` | 🗑️ 清空所有订阅（需确认） |
+| \`漫展 订阅列表\` | 📋 查看当前已订阅的关键词列表 |
+
+---
+
+## ☕🥤 原作者留下的
+如果这个插件对你有帮助，可以[请原作者喝杯可乐🥤 → *(https://ifdian.net/a/lizard0126)* ](https://ifdian.net/a/lizard0126)
+
+💖 **感谢每一位用户的支持与支持！**
 `;
 
 
@@ -96,52 +112,69 @@ export const Config = Schema.intersect([
     apiUrl: Schema.string()
     .default('http://xwl.vincentzyu233.cn:51225/search')
     .role('textarea', { rows: [2, 5] })
-    .description('后端api地址'),
-  }).description('后端api设置'),
+    .description('🌐 远程api地址（proxy/distributed模式使用） </br> 作者自建API：`http://xwl.vincentzyu233.cn:51225/search` </br> 本地URL示例：`http://127.0.0.1:60407`'),
+    priorityMode: Schema.union([
+      Schema.const('proxy').description('🔄【proxy模式】 远程中转（使用 apiUrl）'),
+      Schema.const('local').description('🏠【local模式】 本地直连（直接请求 allcpp.cn）').experimental(),
+      Schema.const('distributed').description('🌍【distribute模式】 分布式（请求本地go后端）').experimental(),
+    ])
+      .role('radio')
+      .default('proxy')
+      .description('⚡ 优先请求模式'),
+    localServerHost: Schema.string()
+      .experimental()
+      .default('0.0.0.0')
+      .description('🖥️ 本地服务器地址（distributed模式使用）'),
+    localServerPort: Schema.number()
+      .experimental()
+      .default(60407)
+      .min(1).max(65535)
+      .description('🔢 本地服务器端口（distributed模式使用）'),
+  }).description('🔗🌐 后端API设置'),
 
   Schema.object({
     addQuote: Schema.boolean()
     .default(true)
-    .description('bot回复指令消息的时候是否添加回复')
-  }).description('消息设置'),
+    .description('💬 Bot回复指令消息时是否添加引用回复')
+  }).description('💬✨ 消息设置'),
 
   Schema.object({
     enableImageQuery: Schema.boolean()
       .default(false)
-      .description('是否注册「漫展 图片查询」指令（需要 puppeteer 服务）'),
+      .description('🖼️ 是否注册「漫展 图片查询」指令（需要 puppeteer 服务）'),
     enableImageBatchQuery: Schema.boolean()
       .default(false)
-      .description('是否注册「漫展 一键图片查询」指令（需要 puppeteer 服务）'),
+      .description('🖼️📦 是否注册「漫展 一键图片查询」指令（需要 puppeteer 服务）'),
     imageDisplayMode: Schema.union([
-      Schema.const('none').description('【模式1】不展示图片'),
-      Schema.const('compact').description('【模式2】左侧展示 4:3 图片（高度不占满）'),
-      Schema.const('gradient').description('【模式3】左侧展示渐变背景图（高度占满，从左到右逐渐透明模糊）'),
-      Schema.const('flip-horizontal').description('【模式4】全背景（模式3基础上增加水平翻转填充全背景）'),
-      Schema.const('full-blur-bg-text').description('【模式5】全背景 + 文字覆盖（模式4基础上文字左对齐并增加整体模糊）'),
+      Schema.const('none').description('【模式1】❌ 不展示图片'),
+      Schema.const('compact').description('【模式2】📐 左侧展示 4:3 图片（高度不占满）'),
+      Schema.const('gradient').description('【模式3】🌈 左侧展示渐变背景图（高度占满，从左到右逐渐透明模糊）'),
+      Schema.const('flip-horizontal').description('【模式4】🪞 全背景（模式3基础上增加水平翻转填充全背景）'),
+      Schema.const('full-blur-bg-text').description('【模式5】✨🌫️ 全背景 + 文字覆盖（模式4基础上文字左对齐并增加整体模糊）'),
     ])
       .role('radio')
       .default('gradient')
-      .description('漫展图片搜索列表的图片展示模式'),
+      .description('🎨 漫展图片搜索列表的图片展示模式'),
     customFontPath: Schema.string()
       .default('')
       .role('textarea', { rows: [2, 5] })
-      .description('可选：绝对路径的自定义字体文件，无法读取时自动回退默认字体'),
+      .description('✒️ 可选：绝对路径的自定义字体文件，无法读取时自动回退默认字体'),
     enableDarkMode: Schema.boolean()
       .default(false)
-      .description('是否启用深色模式'),
+      .description('🌙 是否启用深色模式'),
     imageType: Schema.union([
-      Schema.const('png').description('PNG 格式'),
-      Schema.const('jpeg').description('JPEG 格式'),
-      Schema.const('webp').description('WebP 格式'),
+      Schema.const('png').description('🟦 PNG 格式'),
+      Schema.const('jpeg').description('🟧 JPEG 格式'),
+      Schema.const('webp').description('🟩 WebP 格式'),
     ])
       .role('radio')
       .default('png')
-      .description('渲染图片的输出格式'),
+      .description('📸 渲染图片的输出格式'),
     screenshotQuality: Schema.number()
       .min(0).max(100).step(1)
       .default(80)
-      .description('截图质量 (0-100)，仅对 JPEG/WebP 有效'),
-  }).description('🖼️ 图片渲染设置（需要 puppeteer）'),
+      .description('🎚️ 截图质量 (0-100)，仅对 JPEG/WebP 有效'),
+  }).description('🖼️🎨 图片渲染设置（需要 puppeteer）'),
 
 ])
 
@@ -169,7 +202,7 @@ export function apply(ctx: Context, config: any) {
   const userSearchCache: Record<string, { cache: any[]; timeoutId?: NodeJS.Timeout; imageMode?: boolean }> = {};
   const getChannelId = (session: Session) => session.guildId ? session.channelId : `private:${session.userId}`;
 
-  // 检查 puppeteer 是否可用
+  // 🦎 检查 puppeteer 是否可用
   const hasPuppeteer = () => !!ctx.puppeteer;
   const resolveCustomFontPath = () => {
     const rawPath = config.customFontPath
@@ -178,8 +211,8 @@ export function apply(ctx: Context, config: any) {
     return trimmed ? trimmed : undefined
   }
 
-  ctx.command('漫展', '漫展查询和订阅管理')
-    .subcommand('.查询 <keyword>', '查询漫展')
+  ctx.command('漫展', '🦎🎪 漫展查询和订阅管理')
+    .subcommand('.查询 <keyword>', '🔍 查询漫展')
     .action(async ({ session }, keyword) => {
       if (!keyword) {
         await session.send('请提供查询关键词，例如：漫展 查询 南京');
@@ -192,7 +225,7 @@ export function apply(ctx: Context, config: any) {
       }
 
       try {
-        const response = await ctx.http.get(config.apiUrl + '?msg=' + encodeURIComponent(keyword));
+        const response = await searchEvents(ctx, config, keyword);
         if (response.code !== 200 || !response.data?.length) {
           await session.send('未找到相关漫展信息。');
           return;
@@ -212,10 +245,10 @@ export function apply(ctx: Context, config: any) {
       }
     });
 
-  // 图片查询指令
+  // 🖼️✨ 图片查询指令
   if (config.enableImageQuery) {
-    ctx.command('漫展', '漫展查询和订阅管理')
-      .subcommand('.图片查询 <keyword>', '查询漫展（图片形式）')
+    ctx.command('漫展', '🦎🎪 漫展查询和订阅管理')
+      .subcommand('.图片查询 <keyword>', '🖼️🔍 查询漫展（图片形式）')
       .alias('.tpcx')
       .action(async ({ session }, keyword) => {
         if (!keyword) {
@@ -228,7 +261,7 @@ export function apply(ctx: Context, config: any) {
           return;
         }
 
-        // 清除之前的缓存
+        // 💾✨ 清除之前的缓存
         if (userSearchCache[session.userId]) {
           clearTimeout(userSearchCache[session.userId].timeoutId);
           delete userSearchCache[session.userId];
@@ -237,7 +270,7 @@ export function apply(ctx: Context, config: any) {
         const waitMsgIds = await session.send(`${config.addQuote ? h.quote(session.messageId) : ''}✨ 正在查询并渲染图片，请稍候...`);
 
         try {
-          const response = await ctx.http.get(config.apiUrl + '?msg=' + encodeURIComponent(keyword));
+          const response = await searchEvents(ctx, config, keyword);
           if (response.code !== 200 || !response.data?.length) {
             await session.send('未找到相关漫展信息。');
             return;
@@ -258,7 +291,7 @@ export function apply(ctx: Context, config: any) {
             customFontPath
           );
 
-          // 存入缓存，标记为图片模式
+          // 💾 存入缓存，标记为图片模式
           userSearchCache[session.userId] = { cache: events, imageMode: true };
 
           await session.send(`${config.addQuote ? h.quote(session.messageId) : ''}${h.image(`data:image/${config.imageType || 'png'};base64,${screenshot}`)}\n请输入序号查看详情，输入"0"取消。`);
@@ -281,10 +314,10 @@ export function apply(ctx: Context, config: any) {
       });
   }
 
-  // 一键图片查询指令
+  // 🖼️📦 一键图片查询指令
   if (config.enableImageBatchQuery) {
-    ctx.command('漫展', '漫展查询和订阅管理')
-      .subcommand('.一键图片查询', '查询订阅的所有漫展（图片形式）')
+    ctx.command('漫展', '🦎🎪 漫展查询和订阅管理')
+      .subcommand('.一键图片查询', '🖼️📦 查询订阅的所有漫展（图片形式）')
       .alias('.yjtpcx')
       .action(async ({ session }) => {
         if (!hasPuppeteer()) {
@@ -298,7 +331,7 @@ export function apply(ctx: Context, config: any) {
           return;
         }
 
-        // 清除之前的缓存
+        // 💾📦 清除之前的缓存
         if (userSearchCache[session.userId]) {
           clearTimeout(userSearchCache[session.userId].timeoutId);
           delete userSearchCache[session.userId];
@@ -309,7 +342,7 @@ export function apply(ctx: Context, config: any) {
         try {
           const results = await Promise.all(subscriptions.map(async (sub) => {
             try {
-              const response = await ctx.http.get(config.apiUrl + '?msg=' + encodeURIComponent(sub.keyword));
+              const response = await searchEvents(ctx, config, sub.keyword);
               return response.code === 200 ? response.data.map((item: any) => ({ ...item, keyword: sub.keyword })) : [];
             } catch {
               return [];
@@ -336,7 +369,7 @@ export function apply(ctx: Context, config: any) {
             customFontPath
           );
 
-          // 存入缓存，标记为图片模式
+          // 💾📦 存入缓存，标记为图片模式
           userSearchCache[session.userId] = { cache: allResults, imageMode: true };
 
           await session.send(`${config.addQuote ? h.quote(session.messageId) : ''}${h.image(`data:image/${config.imageType || 'png'};base64,${screenshot}`)}\n请输入序号查看详情，输入"0"取消。`);
@@ -349,7 +382,7 @@ export function apply(ctx: Context, config: any) {
           ctx.logger.error('一键图片查询失败:', error);
           await session.send('查询失败，请稍后重试。');
         } finally {
-          // 删除等待提示消息
+          // 🗑️📦 删除等待提示消息
           try {
             if (waitMsgIds?.[0]) {
               await session.bot.deleteMessage(session.channelId, waitMsgIds[0]);
@@ -359,8 +392,9 @@ export function apply(ctx: Context, config: any) {
       });
   }
 
-  ctx.command('漫展', '漫展查询和订阅管理')
-    .subcommand('.一键查询', '查询订阅的所有漫展')
+  // 📅🔔 一键查询指令
+  ctx.command('漫展', '🦎🎪 漫展查询和订阅管理')
+    .subcommand('.一键查询', '📅🔔 查询订阅的所有漫展')
     .action(async ({ session }) => {
       const subscriptions = await ctx.database.get('anime_convention', { userId: session.userId, channelId: getChannelId(session) });
       if (!subscriptions.length) {
@@ -370,7 +404,7 @@ export function apply(ctx: Context, config: any) {
 
       const results = await Promise.all(subscriptions.map(async (sub) => {
         try {
-          const response = await ctx.http.get(config.apiUrl + '?msg=' + encodeURIComponent(sub.keyword));
+          const response = await searchEvents(ctx, config, sub.keyword);
           return response.code === 200 ? response.data.map((item: any) => ({ ...item, keyword: sub.keyword })) : [];
         } catch {
           return [];
@@ -390,16 +424,16 @@ export function apply(ctx: Context, config: any) {
       userSearchCache[session.userId].timeoutId = setTimeout(() => delete userSearchCache[session.userId], 15000);
     });
 
-  ctx.command('漫展', '漫展查询和订阅管理')
-    .subcommand('.订阅 <keyword>', '订阅漫展')
+  ctx.command('漫展', '🦎🎪 漫展查询和订阅管理')
+    .subcommand('.订阅 <keyword>', '📌🔔 订阅漫展')
     .action(async ({ session }, keyword) => {
       const channelId = getChannelId(session);
       await ctx.database.upsert('anime_convention', [{ userId: session.userId, channelId, keyword, createdAt: Date.now() }]);
       session.send(`已订阅「${keyword}」的漫展信息。`);
     });
 
-  ctx.command('漫展', '漫展查询和订阅管理')
-    .subcommand('.取消订阅 [keyword]', '取消订阅')
+  ctx.command('漫展', '🦎🎪 漫展查询和订阅管理')
+    .subcommand('.取消订阅 [keyword]', '❌🔕 取消订阅')
     .action(async ({ session }, keyword) => {
       const channelId = getChannelId(session);
       if (!keyword) {
@@ -417,8 +451,8 @@ export function apply(ctx: Context, config: any) {
       session.send(deleted ? `已取消订阅「${keyword}」。` : `未找到「${keyword}」的订阅。`);
     });
 
-  ctx.command('漫展', '漫展查询和订阅管理')
-    .subcommand('.订阅列表', '查看订阅列表')
+  ctx.command('漫展', '🦎🎪 漫展查询和订阅管理')
+    .subcommand('.订阅列表', '📋📝 查看订阅列表')
     .action(async ({ session }) => {
       const subscriptions = await ctx.database.get('anime_convention', { userId: session.userId, channelId: getChannelId(session) });
       if (!subscriptions.length) {
@@ -447,7 +481,7 @@ export function apply(ctx: Context, config: any) {
     clearTimeout(userCache.timeoutId);
     const selectedItem = userCache.cache[choice - 1];
 
-    // 如果是图片模式，渲染图片返回
+    // 🖼️✨ 如果是图片模式，渲染图片返回
     if (userCache.imageMode && hasPuppeteer()) {
       try {
         const customFontPath = resolveCustomFontPath()
@@ -484,7 +518,7 @@ export function apply(ctx: Context, config: any) {
       return;
     }
 
-    // 文字模式
+    // 📝✨ 文字模式
     const isOnlineText = typeof selectedItem.isOnline === 'string' 
       ? selectedItem.isOnline 
       : (selectedItem.isOnline ? '线上' : '线下');
