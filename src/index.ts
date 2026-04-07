@@ -1,6 +1,7 @@
 import { Context, Schema, Session, h } from 'koishi';
 import { renderEventsImage, renderEventDetailImage, EventData } from './render';
 import { searchEvents, ApiConfig } from './api';
+import { LocalApiServer } from './server';
 import {} from 'koishi-plugin-puppeteer';
 
 export const inject = {
@@ -116,7 +117,7 @@ export const Config = Schema.intersect([
     priorityMode: Schema.union([
       Schema.const('proxy').description('🔄【proxy模式】 远程中转（使用 apiUrl）'),
       Schema.const('local').description('🏠【local模式】 本地直连（直接请求 allcpp.cn）').experimental(),
-      Schema.const('distributed').description('🌍【distribute模式】 分布式（请求本地go后端）').experimental(),
+      Schema.const('distributed').description('🌍【distributed模式】 分布式（请求本地go后端）').experimental(),
     ])
       .role('radio')
       .default('proxy')
@@ -135,7 +136,7 @@ export const Config = Schema.intersect([
   Schema.object({
     addQuote: Schema.boolean()
     .default(true)
-    .description('💬 Bot回复指令消息时是否添加引用回复')
+    .description('💬 Bot回复指令消息时是否添加引用回复'),
   }).description('💬✨ 消息设置'),
 
   Schema.object({
@@ -176,6 +177,15 @@ export const Config = Schema.intersect([
       .description('🎚️ 截图质量 (0-100)，仅对 JPEG/WebP 有效'),
   }).description('🖼️🎨 图片渲染设置（需要 puppeteer）'),
 
+  Schema.object({
+    verboseConsoleLog: Schema.boolean()
+      .default(false)
+      .description('🐛 是否在控制台输出详细调试信息'),
+    verboseSessionLog: Schema.boolean()
+      .default(false)
+      .description('🐛 是否在会话中输出详细调试信息'),
+  }).description('🐛🔧 调试设置'),
+
 ])
 
 declare module 'koishi' {
@@ -198,6 +208,37 @@ export function apply(ctx: Context, config: any) {
     keyword: 'string',
     createdAt: 'integer',
   }, { primary: ['userId', 'channelId', 'keyword'] });
+
+  // 🌍 初始化本地API服务器（distributed模式）
+  let localServer: LocalApiServer | null = null;
+  
+  const initLocalServer = async () => {
+    if (config.priorityMode === 'distributed' && !localServer) {
+      localServer = new LocalApiServer(ctx, {
+        host: config.localServerHost || '0.0.0.0',
+        port: config.localServerPort || 60407,
+      });
+      await localServer.start();
+    }
+  };
+  
+  const stopLocalServer = async () => {
+    if (localServer) {
+      await localServer.stop();
+      localServer = null;
+    }
+  };
+  
+  // 启动时初始化服务器
+  ctx.on('ready', async () => {
+    await initLocalServer();
+  });
+  
+  // 停止时关闭服务器
+  ctx.on('dispose', async () => {
+    await stopLocalServer();
+  });
+
 
   const userSearchCache: Record<string, { cache: any[]; timeoutId?: NodeJS.Timeout; imageMode?: boolean }> = {};
   const getChannelId = (session: Session) => session.guildId ? session.channelId : `private:${session.userId}`;
@@ -224,9 +265,14 @@ export function apply(ctx: Context, config: any) {
         delete userSearchCache[session.userId];
       }
 
+      if (config.verboseConsoleLog) ctx.logger.info(`[漫展查询] 用户 ${session.userId} 查询关键词: ${keyword}, 模式: ${config.priorityMode}`);
+      if (config.verboseSessionLog) await session.send(`🐛 查询参数: 关键词=${keyword}, 模式=${config.priorityMode}`);
+
       try {
         const response = await searchEvents(ctx, config, keyword);
+        if (config.verboseConsoleLog) ctx.logger.info(`[漫展查询] API响应: code=${response.code}, data长度=${response.data?.length || 0}`);
         if (response.code !== 200 || !response.data?.length) {
+          if (config.verboseConsoleLog) ctx.logger.warn(`[漫展查询] 未找到结果, code=${response.code}, data=${JSON.stringify(response.data)}`);
           await session.send('未找到相关漫展信息。');
           return;
         };
@@ -261,6 +307,9 @@ export function apply(ctx: Context, config: any) {
           return;
         }
 
+        if (config.verboseConsoleLog) ctx.logger.info(`[漫展图片查询] 用户 ${session.userId} 查询关键词: ${keyword}, 模式: ${config.priorityMode}`);
+        if (config.verboseSessionLog) await session.send(`🐛 图片查询参数: 关键词=${keyword}, 模式=${config.priorityMode}`);
+
         // 💾✨ 清除之前的缓存
         if (userSearchCache[session.userId]) {
           clearTimeout(userSearchCache[session.userId].timeoutId);
@@ -271,7 +320,9 @@ export function apply(ctx: Context, config: any) {
 
         try {
           const response = await searchEvents(ctx, config, keyword);
+          if (config.verboseConsoleLog) ctx.logger.info(`[漫展图片查询] API响应: code=${response.code}, data长度=${response.data?.length || 0}`);
           if (response.code !== 200 || !response.data?.length) {
+            if (config.verboseConsoleLog) ctx.logger.warn(`[漫展图片查询] 未找到结果, code=${response.code}`);
             await session.send('未找到相关漫展信息。');
             return;
           }
@@ -293,6 +344,8 @@ export function apply(ctx: Context, config: any) {
 
           // 💾 存入缓存，标记为图片模式
           userSearchCache[session.userId] = { cache: events, imageMode: true };
+
+          if (config.verboseConsoleLog) ctx.logger.info(`[漫展图片查询] 渲染完成, 事件数=${events.length}`);
 
           await session.send(`${config.addQuote ? h.quote(session.messageId) : ''}${h.image(`data:image/${config.imageType || 'png'};base64,${screenshot}`)}\n请输入序号查看详情，输入"0"取消。`);
 

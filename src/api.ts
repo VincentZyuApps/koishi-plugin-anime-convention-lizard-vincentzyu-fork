@@ -105,7 +105,7 @@ function parseEnded(item: CPPEventItem): string {
   return '未结束';
 }
 
-function parseEvent(item: CPPEventItem): Event {
+export function parseEvent(item: CPPEventItem): Event {
   const isCancelled = item.enabled === 5;
   let name = item.name;
   if (isCancelled && !name.includes('(已取消)')) {
@@ -143,6 +143,7 @@ async function fetchPage(ctx: Context, keyword: string, page: number, pageSize: 
   });
 
   const url = `${CPP_API_BASE}?${params.toString()}`;
+  ctx.logger.info(`[漫展-API][local] 请求URL: ${url}`);
 
   const response = await ctx.http.get(url, {
     headers: {
@@ -165,7 +166,10 @@ async function fetchPage(ctx: Context, keyword: string, page: number, pageSize: 
 
 function getApiUrl(config: ApiConfig): string {
   if (config.priorityMode === 'distributed') {
-    return `http://${config.localServerHost}:${config.localServerPort}/search`;
+    // 0.0.0.0 是绑定地址，实际连接需要用 127.0.0.1
+    const host = config.localServerHost === '0.0.0.0' ? '127.0.0.1' : config.localServerHost;
+    const url = `http://${host}:${config.localServerPort}/search`;
+    return url;
   }
   return config.apiUrl;
 }
@@ -175,13 +179,24 @@ export async function searchEvents(ctx: Context, config: ApiConfig, keyword: str
     let response: any;
     
     if (config.priorityMode === 'local') {
+      ctx.logger.info(`[漫展-API][local] 模式=local, 关键词=${keyword}`);
       response = await fetchPage(ctx, keyword, 1);
+      ctx.logger.info(`[漫展-API][local] 收到响应, total=${response.result?.total}, list长度=${response.result?.list?.length}`);
     } else {
-      response = await ctx.http.get(getApiUrl(config) + '?msg=' + encodeURIComponent(keyword));
+      const apiUrl = getApiUrl(config) + '?msg=' + encodeURIComponent(keyword);
+      ctx.logger.info(`[漫展-API][${config.priorityMode}] 请求URL: ${apiUrl}`);
+      try {
+        response = await ctx.http.get(apiUrl);
+        ctx.logger.info(`[漫展-API][${config.priorityMode}] 收到响应: ${JSON.stringify(response).slice(0, 500)}`);
+      } catch (httpError: any) {
+        ctx.logger.error(`[漫展-API][${config.priorityMode}] HTTP请求失败: ${httpError.message}`);
+        throw httpError;
+      }
     }
 
     if (config.priorityMode === 'local') {
       const allEvents: Event[] = response.result?.list?.map(parseEvent) || [];
+      ctx.logger.info(`[漫展-API][local] 解析后事件数量: ${allEvents.length}`);
       return {
         code: 200,
         msg: keyword,
@@ -190,6 +205,7 @@ export async function searchEvents(ctx: Context, config: ApiConfig, keyword: str
     }
     return response;
   } catch (error: any) {
+    ctx.logger.error(`[漫展-API] 异常: ${error.message}, stack=${error.stack}`);
     return {
       code: 500,
       msg: error.message || '请求失败',
@@ -206,7 +222,7 @@ export async function searchAllEvents(ctx: Context, config: ApiConfig): Promise<
       response = await fetchPage(ctx, '', 1, 100);
     } else {
       const baseUrl = config.priorityMode === 'distributed' 
-        ? `http://${config.localServerHost}:${config.localServerPort}` 
+        ? `http://${config.localServerHost === '0.0.0.0' ? '127.0.0.1' : config.localServerHost}:${config.localServerPort}` 
         : config.apiUrl;
       response = await ctx.http.get(baseUrl.replace('/search', '/search_all'));
     }
