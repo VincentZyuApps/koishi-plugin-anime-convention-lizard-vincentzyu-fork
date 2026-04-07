@@ -55,18 +55,48 @@ yarn add koishi-plugin-anime-convention-lizard-vincentzyu-fork
 
 ## ⚙️ 配置说明
 
-### 🔗 后端 API
-本插件默认使用作者提供的公共 API。
+### 🔗 后端 API 配置
+本插件默认使用作者提供的公共 API。如果你希望自托管后端以获取更稳定的服务，可以前往 [allcpp-search-go](https://github.com/VincentZyu233/allcpp-search-go) 下载二进制文件直接运行，或者从源码自行编译。
 
-```typescript
-// 默认配置
-apiUrl: Schema.string()
-    .default('http://xwl.vincentzyu233.cn:51225/search')
-    .description('后端api地址'),
-```
+📡 **三种请求模式详解**：
 
-如果你希望自托管后端，可以前往 [https://github.com/VincentZyu233/allcpp-search-go](https://github.com/VincentZyu233/allcpp-search-go) 下载二进制文件直接运行。或者你自己用源码go build一份也行( 这个后端他就是直接请求www.allcpp.cn的接口的
+#### 🔄 Proxy 模式（远程中转）
+- **工作原理**：通过远程中转服务器转发请求到 allcpp.cn
+- **适用场景**：不想自托管后端，直接使用作者提供的公共服务
+- **配置示例**：
+  ```typescript
+  priorityMode: 'proxy'
+  apiUrl: 'http://xwl.vincentzyu233.cn:51225/search'  // 作者提供的公共API
+  ```
 
+#### 🏠 Local 模式（本地直连）
+- **工作原理**：直接请求 allcpp.cn 官网，不经过任何中间层
+- **适用场景**：追求最直接的访问方式，无需额外部署
+- **注意**：此模式为实验性功能，可能受 allcpp.cn 反爬策略影响
+- **配置示例**：
+  ```typescript
+  priorityMode: 'local'
+  // 无需配置 apiUrl
+  ```
+
+#### 🌍 Distributed 模式（分布式本地后端）
+- **工作原理**：请求本地部署的 Go 后端服务，由该后端代理请求 allcpp.cn
+- **适用场景**：自托管后端以获得更稳定的服务和更快的响应速度
+- **配置步骤**：
+  1. 下载并运行 [allcpp-search-go](https://github.com/VincentZyu233/allcpp-search-go) 后端服务
+  2. 配置插件指向本地后端地址
+- **配置示例**：
+  ```typescript
+  priorityMode: 'distributed'
+  apiUrl: 'http://127.0.0.1:60407/search'  // 本地后端地址（需添加 /search 后缀）
+  localServerHost: '0.0.0.0'  // 本地服务器监听地址
+  localServerPort: 60407       // 本地服务器监听端口
+  ```
+
+💡 **模式选择建议**：
+- 新手用户 → 使用默认的 **Proxy 模式**
+- 追求稳定性 → 部署本地后端并使用 **Distributed 模式**
+- 测试调试 → 可尝试 **Local 模式**
 
 ### 🔤 字体设置
 你可以手动下载字体文件，并在插件配置项中填写字体的**绝对路径**。
