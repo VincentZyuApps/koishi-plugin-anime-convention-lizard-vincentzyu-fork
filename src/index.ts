@@ -194,6 +194,9 @@ declare module 'koishi' {
   }
 }
 
+// Koishi 4.18's Minato types do not yet represent the runtime PostgreSQL bigint type.
+const postgresBigint = 'bigint' as any;
+
 export interface Subscription {
   userId: string;
   channelId: string;
@@ -206,7 +209,7 @@ export function apply(ctx: Context, config: any) {
     userId: 'string',
     channelId: 'string',
     keyword: 'string',
-    createdAt: 'integer',
+    createdAt: postgresBigint,
   }, { primary: ['userId', 'channelId', 'keyword'] });
 
   // 🌍 初始化本地API服务器（distributed模式）

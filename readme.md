@@ -5,8 +5,13 @@
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-anime-convention-lizard-vincentzyu-fork?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-anime-convention-lizard-vincentzyu-fork)
 [![npm-download](https://img.shields.io/npm/dm/koishi-plugin-anime-convention-lizard-vincentzyu-fork?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-anime-convention-lizard-vincentzyu-fork)
+
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/VincentZyuApps/koishi-plugin-anime-convention-lizard-vincentzyu-fork)
 [![Gitee](https://img.shields.io/badge/Gitee-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/vincent-zyu/koishi-plugin-anime-convention-lizard-vincentzyu-fork)
+
+[![Koishi Forum](https://img.shields.io/badge/Koishi%20Forum-12115-5546A3?style=for-the-badge)](https://forum.koishi.xyz/t/topic/12115)
+
+[![QQ群](https://img.shields.io/badge/QQ群-1085190201-12B7F5?style=flat-square&logo=qq&logoColor=white)](https://qm.qq.com/q/ZHj33L5cuC)
 
 
 > **上游仓库**：[https://github.com/lizard0126/anime-convention-lizard](https://github.com/lizard0126/anime-convention-lizard)
