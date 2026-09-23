@@ -1,0 +1,321 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
+import { LIST_ENDPOINT, DETAIL_ENDPOINT } from './bili-client.mjs'
+
+const docsDir = resolve(import.meta.dirname, '../docs')
+const listProbePath = resolve(docsDir, 'bili-list-probe.json')
+const detailProbePath = resolve(docsDir, 'bili-detail-probe.json')
+const htmlPath = resolve(docsDir, 'bili-api-research.html')
+
+const [listProbe, detailProbe] = await Promise.all([
+  readFile(listProbePath, 'utf8').then(JSON.parse),
+  readFile(detailProbePath, 'utf8').then(JSON.parse),
+])
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+}
+
+function rowsToHtml(rows) {
+  return rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.areaName)}<code>${escapeHtml(row.area)}</code></td>
+      <td>${escapeHtml(row.channelName)}</td>
+      <td>${row.httpStatus}</td>
+      <td>${row.receivedCount}</td>
+      <td>${escapeHtml(Object.entries(row.categories).map(([name, count]) => `${name} ${count}`).join(' / '))}</td>
+      <td>${escapeHtml(row.projects.map((project) => `${project.category} · ${project.name}`).join('\n'))}</td>
+    </tr>`).join('')
+}
+
+const overviewRows = listProbe.rows.filter((row) => row.area === '110000' || row.area === '320100')
+const allCategories = [...new Set(listProbe.rows.flatMap((row) => Object.keys(row.categories)))].sort((left, right) => left.localeCompare(right, 'zh-CN'))
+const guestSamples = detailProbe.detailEndpoint.guests
+  .map((guest) => `<li><strong>${escapeHtml(guest.name || '(未命名嘉宾)')}</strong> ${escapeHtml(guest.description || '')} <span>${escapeHtml(guest.booked ?? 0)} 预约</span></li>`)
+  .join('')
+
+const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
+const html = `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B站会员购接口调研报告</title>
+  <style>
+    :root { color-scheme: dark; --bg: #101115; --surface: #181a20; --surface-2: #20232c; --line: #323746; --text: #edf0f7; --muted: #aab2c3; --blue: #00a1d6; --pink: #ff5687; --green: #55c780; --amber: #f2bb5b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.65 system-ui, -apple-system, "Microsoft YaHei", sans-serif; }
+    header { border-bottom: 1px solid var(--line); background: linear-gradient(115deg, #151824 0%, #182433 52%, #281925 100%); }
+    .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header .wrap { padding: 54px 0 42px; }
+    h1, h2, h3 { line-height: 1.25; letter-spacing: 0; }
+    h1 { margin: 0; font-size: 34px; }
+    h1 span { color: var(--pink); }
+    .subtitle { margin: 14px 0 0; max-width: 760px; color: var(--muted); font-size: 17px; }
+    main { padding: 26px 0 70px; }
+    section { margin: 22px 0; padding: 26px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    h2 { margin: 0 0 16px; font-size: 22px; }
+    h3 { margin: 24px 0 8px; font-size: 17px; color: var(--blue); }
+    p { margin: 10px 0; }
+    code { padding: 2px 5px; border-radius: 4px; background: #0e1016; color: #7cd5f0; font-family: ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+    pre { margin: 12px 0; padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: #0d0f14; color: #d8e2f1; overflow-x: auto; }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .badge { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: #11131a; }
+    .badge strong { color: var(--text); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .card { padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
+    .card h3 { margin-top: 0; }
+    .good { color: var(--green); } .warn { color: var(--amber); } .pink { color: var(--pink); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: #caeaf5; background: #161b25; position: sticky; top: 0; }
+    td code { display: block; margin-top: 4px; width: fit-content; }
+    td:last-child { white-space: pre-line; min-width: 260px; }
+    .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+    ul { margin: 8px 0; padding-left: 22px; }
+    li { margin: 6px 0; }
+    li span { color: var(--muted); }
+    .command { color: #f6c7d6; }
+    .terminal { color: #d7dce7; }
+    .terminal b { color: #7cd5f0; }
+    .terminal .hint { color: #aab2c3; }
+    .terminal .success { color: #55c780; }
+    .terminal .error { color: #ff8ca9; }
+    .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 14px 0; }
+    .flow div { position: relative; min-height: 76px; padding: 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
+    .flow div:not(:last-child)::after { content: '→'; position: absolute; right: -14px; top: 24px; z-index: 1; color: var(--pink); font-size: 22px; }
+    .setting { margin: 10px 0; padding: 14px; border-left: 3px solid var(--blue); background: #171d27; }
+    .setting small { display: block; color: var(--muted); margin-top: 4px; }
+    .callout { padding: 14px 16px; border-radius: 6px; border: 1px solid #6d4053; background: #2a1821; color: #f3d7df; }
+    .footnote { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header><div class="wrap">
+    <h1><span>B站会员购</span> 接口调研报告</h1>
+    <p class="subtitle">针对 koishi-plugin-anime-convention-lizard-vincentzyu-fork 的只读实测。报告由 temp/scripts 中的探测脚本生成，不代表 B 站公开或稳定的 API 承诺。</p>
+    <div class="meta"><span class="badge">生成时间 <strong>${escapeHtml(now)}</strong></span><span class="badge">列表探测 <strong>${listProbe.rows.length} 次</strong></span><span class="badge">接口状态 <strong class="good">可用</strong></span></div>
+  </div></header>
+  <main class="wrap">
+    <section>
+      <h2>先说结论</h2>
+      <div class="grid">
+        <div class="card"><h3>接口能力</h3><p>可按 <strong>地区码</strong> 查询展览、演出、本地生活；没有可用的服务端关键词搜索。</p></div>
+        <div class="card"><h3>Only 同人展</h3><p class="pink">Only同人展只会出现在不传 <code>p_type</code> 的混合列表里。</p></div>
+        <div class="card"><h3>结果上限</h3><p class="warn">每次最多 20 条；<code>page</code> 实测不翻页，不能当分页用。</p></div>
+        <div class="card"><h3>插件形态</h3><p>推荐新增独立 <code>漫展B</code> 命令族，保持现有 allcpp 的 <code>漫展</code> 不变。</p></div>
+      </div>
+    </section>
+    <section>
+      <h2>接口长什么样</h2>
+      <h3>列表接口</h3>
+      <pre>GET ${LIST_ENDPOINT}
+?version=134&page=1&pagesize=20
+&area=110000
+&filter=
+&platform=web
+&p_type=展览</pre>
+      <p><code>area</code> 必填，是六位国标行政区划码，例如北京 <code>110000</code>、朝阳区 <code>110105</code>、南京 <code>320100</code>。上游的 <code>area.ts</code> 正是汉字地区名到此码的映射表。</p>
+      <p><code>p_type</code> 是“从哪个 B 站频道拿数据”，合法值为 <code>展览</code>、<code>演出</code>、<code>本地生活</code>；不传时得到混合列表。它不是“漫展/演唱会”这种具体体裁。</p>
+      <h3>详情接口</h3>
+      <pre>GET ${DETAIL_ENDPOINT}
+?version=134&id=&lt;project_id&gt;&project_id=&lt;project_id&gt;&requestSource=pc-new</pre>
+      <p>列表接口里的 <code>guests[].name</code> 实测通常为空；详情接口才有嘉宾姓名、介绍、预约数和头像。因此详情页需要额外请求一次。</p>
+    </section>
+    <section>
+      <h2>频道与体裁不是同一个概念</h2>
+      <div class="grid">
+        <div class="card"><h3>展览频道</h3><p>主要返回：漫展、IP展览、其他展览。</p></div>
+        <div class="card"><h3>演出频道</h3><p>主要返回：演唱会、音乐会、livehouse、话剧、音乐剧、音乐节、其他演出。</p></div>
+        <div class="card"><h3>本地生活频道</h3><p>主要返回：主题餐厅、快闪、见面会、其他活动。</p></div>
+        <div class="card"><h3>混合列表</h3><p>混合上述结果；实测 Only同人展、电竞赛事只在这里出现。</p></div>
+      </div>
+      <p>本轮实测见到的体裁：${escapeHtml(allCategories.join('、'))}。</p>
+    </section>
+    <section>
+      <h2>实测样本</h2>
+      <p class="footnote">每格显示前五条。列表返回会随时间变化，重点看频道和体裁对应关系。</p>
+      <div class="scroll"><table><thead><tr><th>地区</th><th>请求频道</th><th>HTTP</th><th>收到</th><th>体裁分布</th><th>样本</th></tr></thead><tbody>${rowsToHtml(overviewRows)}</tbody></table></div>
+    </section>
+    <section>
+      <h2>已验证的限制</h2>
+      <ul>
+        <li><code>filter=东方</code> 与空 <code>filter</code> 返回项目 ID 是否完全相同：<strong class="${listProbe.experiments.filter.sameProjects ? 'warn' : 'good'}">${listProbe.experiments.filter.sameProjects ? '是，服务端过滤无效' : '否，需复核'}</strong>。</li>
+        <li><code>page=1</code> 与 <code>page=2</code> 返回项目 ID 是否完全相同：<strong class="${listProbe.experiments.pagination.sameProjects ? 'warn' : 'good'}">${listProbe.experiments.pagination.sameProjects ? '是，不能依赖分页' : '否，需复核'}</strong>；接口声称的总数从 ${listProbe.experiments.pagination.pageOneDeclaredTotal} 变成 ${listProbe.experiments.pagination.pageTwoDeclaredTotal}。</li>
+        <li><code>pagesize=30</code>：HTTP ${listProbe.experiments.pageSize30.httpStatus}，接口消息：<code>${escapeHtml(listProbe.experiments.pageSize30.message)}</code>。</li>
+        <li>因此要提高大城市覆盖率，只能按区县拆分查询、按 <code>project_id</code> 去重。插件将把它做成默认关闭的 <code>--fanout</code> / 管理台开关，而不是伪分页。</li>
+      </ul>
+    </section>
+    <section>
+      <h2>详情接口：嘉宾实测</h2>
+      <p>样本项目：<strong>${escapeHtml(detailProbe.project.name)}</strong>（${escapeHtml(detailProbe.project.id)}）。列表端有 ${detailProbe.listEndpoint.guestCount} 个嘉宾 ID，但名字为：<code>${escapeHtml(JSON.stringify(detailProbe.listEndpoint.guestNames.slice(0, 5)))}</code>。</p>
+      <p>详情端拿到 ${detailProbe.detailEndpoint.guestCount} 位嘉宾。前十位：</p>
+      <ul>${guestSamples || '<li>本次样本没有嘉宾</li>'}</ul>
+    </section>
+    <section>
+      <h2>建议的 Koishi 设计（未实施草图）</h2>
+      <p>保留现有 <code>漫展</code>（allcpp 关键词查询）完全不动，新增独立的 B 站地区查询命令族：</p>
+      <pre class="command">漫展B 查询 北京
+漫展B 图片查询 南京
+漫展B 查询 广州 --scope 演出
+漫展B 查询 成都 --scope 全部
+漫展B 查询 北京 --fanout
+漫展B 订阅 上海
+漫展B 一键查询 --scope 本地生活</pre>
+      <p><code>--scope</code> 的含义：<code>漫展</code> = 展览 + 混合（保留漫展/Only/IP/其他展览）；<code>展览</code>、<code>演出</code>、<code>本地生活</code> 各取一个频道；<code>全部</code> 取四个频道且不按体裁过滤。省略时读取管理台默认值。</p>
+      <p>订阅只保存地区码，按已选方案始终跟随管理台当前默认范围；<code>一键查询 --scope</code> 仅本次覆盖，不修改订阅或默认配置。新订阅表与 allcpp 表分离，避免破坏旧订阅。</p>
+      <p>图片查询复用现有 Puppeteer 能力，但增加 B 站主题：蓝 <code>#00A1D6</code>、粉 <code>#FF5687</code>，且页脚写明“数据来源：B站会员购”。</p>
+    </section>
+    <section>
+      <h2>用户看见的命令结构</h2>
+      <p>核心原则：数据源用根命令区分，用户行为用第二层区分；范围是一次查询的筛选条件，因此放在 option，不再堆第三层子命令。</p>
+      <pre class="terminal"><b>漫展</b>                         现有 allcpp 数据源，保持原样
+  ├─ 查询 &lt;关键词&gt;
+  ├─ 图片查询 &lt;关键词&gt;
+  ├─ 一键查询 / 一键图片查询
+  └─ 订阅 / 取消订阅 / 订阅列表
+
+<b>漫展B</b>                        新增 B站会员购数据源，只接受地区
+  ├─ 查询 &lt;地区&gt; [--scope &lt;范围&gt;] [--fanout]
+  ├─ 图片查询 &lt;地区&gt; [--scope &lt;范围&gt;] [--fanout]
+  ├─ 一键查询 [--scope &lt;范围&gt;] [--fanout]
+  ├─ 一键图片查询 [--scope &lt;范围&gt;] [--fanout]
+  └─ 订阅 &lt;地区&gt; / 取消订阅 [地区] / 订阅列表</pre>
+      <p>例如“东方”“原神”是主题关键词，应该使用现有 <code>漫展 查询 东方</code>；B 站接口没有可靠关键词检索，<code>漫展B 查询 东方</code> 会明确提示“B站查询只支持行政区，例如北京、南京、朝阳区”。</p>
+    </section>
+    <section>
+      <h2>模拟帮助：用户输入 漫展B --help</h2>
+      <pre class="terminal"><b>漫展B</b> - B站会员购地区活动查询与订阅
+
+用法：漫展B &lt;子指令&gt;
+
+子指令：
+  查询 &lt;地区&gt;                 查询一个地区的 B站会员购活动
+  图片查询 &lt;地区&gt;             将查询结果渲染为图片（需要 Puppeteer）
+  一键查询                    查询本频道已订阅的所有地区
+  一键图片查询                将所有订阅结果渲染为图片（需要 Puppeteer）
+  订阅 &lt;地区&gt;                 订阅一个地区
+  取消订阅 [地区]             取消一个地区，省略地区则取消全部
+  订阅列表                    查看已订阅地区
+
+范围说明：
+  默认范围由管理员在 Koishi 控制台设置。
+  单次查询可使用 --scope 临时覆盖默认范围。
+  可选范围：漫展、展览、演出、本地生活、全部、自定义。
+
+示例：
+  漫展B 查询 北京
+  漫展B 查询 广州 --scope 演出
+  漫展B 订阅 南京
+  漫展B 一键查询 --scope 本地生活
+
+输入「漫展B 查询 --help」查看查询选项。</pre>
+    </section>
+    <section>
+      <h2>模拟帮助：用户输入 漫展B 查询 --help</h2>
+      <pre class="terminal"><b>漫展B 查询 &lt;地区&gt;</b> - 查询 B站会员购中的地区活动
+
+用法：漫展B 查询 &lt;地区&gt; [选项]
+
+参数：
+  &lt;地区&gt;                       行政区名称，例如北京、南京、朝阳区
+
+选项：
+  -s, --scope &lt;范围&gt;          仅本次覆盖控制台默认范围
+                                漫展：展览 + 混合，保留漫展/Only/IP/其他展览
+                                展览：只查询展览频道
+                                演出：只查询演出频道
+                                本地生活：只查询本地生活频道
+                                全部：查询全部频道，不按体裁过滤
+                                自定义：使用控制台的高级自定义规则
+  -f, --fanout                 按区县展开查询，提高大城市覆盖率
+  -h, --help                   显示帮助
+
+示例：
+  漫展B 查询 北京
+  漫展B 查询 南京 --scope 漫展
+  漫展B 查询 上海 --scope 全部
+  漫展B 查询 北京 --fanout
+
+<span class="hint">未指定 --scope 时，使用管理员设置的默认范围。</span></pre>
+      <div class="callout">为什么没有 <code>漫展B 演出 查询 北京</code> 这种三级命令？因为“演出”只是同一次查询的范围，而不是独立功能。用 <code>--scope 演出</code> 能保持帮助列表稳定在 7 个 B站子指令，而不是把每个行为复制成 5 份。</div>
+    </section>
+    <section>
+      <h2>真实使用时的 Bot 回复</h2>
+      <div class="grid">
+        <div class="card"><h3>普通查询</h3><pre class="terminal">用户：漫展B 查询 北京
+
+Bot：B站会员购 · 漫展范围 · 北京市
+     找到 21 项活动，按开始时间排序：
+     1. 北京·第30届IJOY动漫游戏狂欢节
+     2. 北京·IDO动漫游戏嘉年华55th
+     3. 北京·葱韵环京2026秋季VOCALOID 同人ONLY
+     ...
+     回复序号查看详情，回复 0 取消。</pre></div>
+        <div class="card"><h3>临时范围覆盖</h3><pre class="terminal">用户：漫展B 查询 广州 --scope 演出
+
+Bot：B站会员购 · 演出范围 · 广州市
+     找到 20 项活动：
+     1. 广州·……音乐会
+     2. 广州·……livehouse
+     ...
+     本次范围仅对本次查询生效。</pre></div>
+        <div class="card"><h3>错误引导</h3><pre class="terminal">用户：漫展B 查询 东方
+
+Bot：<span class="error">B站会员购仅支持地区查询。</span>
+     可输入：北京、南京、朝阳区。
+     若要按作品或主题搜索，请使用：
+     <b>漫展 查询 东方</b></pre></div>
+        <div class="card"><h3>区县扇出</h3><pre class="terminal">用户：漫展B 查询 北京 --fanout
+
+Bot：正在按北京市及下辖区查询，可能需要更长时间。
+     已合并并去重，展示开始时间最早的前 50 项。
+     <span class="hint">相同 project_id 只保留一次；不同票种保留。</span></pre></div>
+      </div>
+      <h3>详情选择后的体验</h3>
+      <div class="flow"><div>用户回复<br><strong>1</strong></div><div>从内存缓存取得<br>project_id</div><div>请求 B站详情接口<br>补全嘉宾</div><div>图片模式：B站蓝粉详情图<br>文字模式：封面 + 详情</div></div>
+      <p>详情应展示活动名称、体裁、售卖状态、时间、地区与场馆、价格区间、想去人数、标签、B站详情链接，以及真实嘉宾名单；只有详情页才补请求嘉宾，列表阶段不额外打 20 次接口。</p>
+    </section>
+    <section>
+      <h2>订阅体验与默认范围</h2>
+      <p>按当前规划，订阅只保存“用户 + 会话/频道 + 地区码”，不保存 <code>--scope</code>。原因是你已选择“订阅始终跟随控制台默认范围”。</p>
+      <pre class="terminal">管理员在控制台把默认范围从「漫展」改为「演出」
+              ↓
+用户此前执行过：漫展B 订阅 北京
+              ↓
+用户现在执行：漫展B 一键查询
+              ↓
+Bot 按「演出」范围查询北京，而不是旧的「漫展」范围</pre>
+      <p>因此 <code>漫展B 订阅 北京 --scope 演出</code> 不注册为合法用法，避免用户以为它会保存演出范围。允许 <code>漫展B 一键查询 --scope 本地生活</code>，但该参数只覆盖这一轮，不改订阅、不改控制台默认值。</p>
+      <p>订阅表应独立命名为 <code>anime_convention_bili</code>，从而完全不触碰 allcpp 的 <code>anime_convention</code> 关键词订阅。</p>
+    </section>
+    <section>
+      <h2>Koishi 控制台：建议的 B站设置</h2>
+      <p>新增一个独立分组“B站会员购设置”。现有 allcpp 后端、图片、消息和调试设置保持不变。</p>
+      <div class="setting"><strong>启用 B站命令</strong>　开关，默认开启。关闭时不注册 <code>漫展B</code> 命令；现有 <code>漫展</code> 不受影响。<small>适合不想让机器人请求 B站的管理员。</small></div>
+      <div class="setting"><strong>默认查询范围</strong>　单选：漫展（默认） / 展览 / 演出 / 本地生活 / 全部 / 自定义。<small>用户未写 <code>--scope</code> 时使用；所有 B站订阅的一键查询也使用它。</small></div>
+      <div class="setting"><strong>区县展开查询</strong>　开关，默认关闭。<small>开启后可查到超过单次 20 条上限的结果；单次查询会更多、更慢，且可能更容易触发 B站限制。</small></div>
+      <div class="setting"><strong>最多展示结果</strong>　数字输入，默认 50，建议范围 1～100。<small>统一用于文字和图片结果；按开始日期排序后截断，避免超长消息或超高图片。</small></div>
+      <div class="setting"><strong>自定义请求频道</strong>　多选：展览 / 演出 / 本地生活 / 混合。<small>仅当“默认查询范围”选为“自定义”时生效。B站不接受任意自定义频道名称，因此不提供频道自由文本框。</small></div>
+      <div class="setting"><strong>自定义保留体裁</strong>　多选已知体裁 + 附加体裁表。<small>已知项包括漫展、Only同人展、IP展览、其他展览、演唱会、音乐会、livehouse、主题餐厅等；附加体裁表使用“名称 | 启用”两列，处理 B站未来新增分类。</small></div>
+      <div class="setting"><strong>图片渲染</strong>　复用现有 Puppeteer 图片开关与格式质量设置。<small>B站结果自动选择蓝 <code>#00A1D6</code>、粉 <code>#FF5687</code> 主题及 B站会员购页脚；不额外增加颜色配置，避免控制台堆满样式选项。</small></div>
+      <p class="footnote">高级“自定义”字段会始终出现在配置页并注明生效条件，而不是尝试做 Koishi Schema 当前不支持的动态显隐。</p>
+    </section>
+    <section>
+      <h2>实施时的数据流</h2>
+      <div class="flow"><div>解析地区名<br>北京 → 110000</div><div>解析范围<br>默认或 --scope</div><div>请求对应频道<br>可选区县展开</div><div>按 project_id 去重<br>日期排序，最多 50 条</div><div>编号列表进入缓存<br>选中后取详情</div></div>
+      <p>使用严格的 <code>project_id</code> 去重：同一项目被“展览”和“混合”或多个区县重复返回时只保留一次；不同 <code>project_id</code> 的主展、签售、专场见面会保留，避免智能按名称合并误删独立活动。</p>
+    </section>
+    <p class="footnote">生成脚本：temp/scripts/probe-bili-list.mjs、probe-bili-detail.mjs、build-bili-report.mjs。原始结果：bili-list-probe.json、bili-detail-probe.json。</p>
+  </main>
+</body>
+</html>`
+
+await mkdir(dirname(htmlPath), { recursive: true })
+await writeFile(htmlPath, html)
+console.log(`Wrote ${htmlPath}`)

@@ -1,55 +1,48 @@
 import { Context } from 'koishi'
 import {} from 'koishi-plugin-puppeteer'
-import { existsSync, readFileSync } from 'fs'
-import { extname, isAbsolute, resolve } from 'path'
-
-const MAX_RETRIES = 3
-const RETRY_DELAY_MS = 1000
-
-async function getPageWithRetry(ctx: Context) {
-  let lastError: Error | null = null
-  
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const puppeteer = ctx.puppeteer as any
-      if (!puppeteer.browser?.connected) {
-        ctx.logger.warn(`Browser not connected, attempt ${attempt}/${MAX_RETRIES}`)
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
-        continue
-      }
-      return await ctx.puppeteer.page()
-    } catch (error) {
-      lastError = error as Error
-      ctx.logger.warn(`Page creation failed (attempt ${attempt}/${MAX_RETRIES}): ${error}`)
-      if (attempt < MAX_RETRIES) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
-      }
-    }
-  }
-  
-  throw lastError || new Error('Failed to create page after retries')
-}
-
-export interface EventData {
-  name: string
-  location: string
-  address: string
-  time: string
-  tag: string
-  ended: string
-  wannaGoCount: string | number
-  circleCount: string | number
-  doujinshiCount: string | number
-  url: string
-  isOnline: string | boolean
-  appLogoPicUrl: string
-  keyword?: string  // 一键查询时携带的订阅关键词
-}
+import { type Config } from '../config'
+import { FontConfigurationError, type RenderFontConfig, resolveRenderFont } from '../font'
+import { fetchImageAsBase64, getPageWithRetry, isRecoverablePuppeteerError, mapWithConcurrency } from './shared'
+import { EventData, RenderSource } from './types'
 
 /**
  * 配色方案 (参考无差别同人站 https://www.allcpp.cn 风格，橙黄主色调)
  */
-function getColors(isDarkMode: boolean) {
+function getColors(isDarkMode: boolean, source: RenderSource = 'allcpp') {
+  if (source === 'bilibili') {
+    return isDarkMode ? {
+      background: '#15171d',
+      cardBackground: '#20232c',
+      textPrimary: '#f5f7fb',
+      textSecondary: '#a9b3c4',
+      primary: '#00a1d6',
+      secondary: '#ff5687',
+      accent: '#ff7ca3',
+      border: '#363c4b',
+      hover: '#292d38',
+      ongoing: '#00a1d6',
+      ended: '#687386',
+      upcoming: '#ff5687',
+      link: '#00a1d6',
+      statBg: 'rgba(0, 161, 214, 0.16)'
+    } : {
+      background: '#f6f8fb',
+      cardBackground: '#ffffff',
+      textPrimary: '#252a34',
+      textSecondary: '#737b8d',
+      primary: '#00a1d6',
+      secondary: '#ff5687',
+      accent: '#ff5687',
+      border: '#dfe5ee',
+      hover: '#f3f7fb',
+      ongoing: '#00a1d6',
+      ended: '#b0b8c5',
+      upcoming: '#ff5687',
+      link: '#00a1d6',
+      statBg: 'rgba(0, 161, 214, 0.08)'
+    }
+  }
+
   return isDarkMode ? {
     // 深色模式配色
     background: '#1a1a1a',
@@ -85,72 +78,116 @@ function getColors(isDarkMode: boolean) {
   }
 }
 
-const BASE_FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif'
-const CUSTOM_FONT_FAMILY = 'KoishiCustomFont'
+const FONT_READY_TIMEOUT = 10_000
+const STATIC_RENDER_TEXT = '漫展查询结果 漫展详情 详细信息 共计 进行中 未开始 已结束 地点 地址 时间 标签 想去 社团 同人作 B站会员购 无差别同人站 查询结果 活动状态 数据来源 线上 线下 封面 🎉 📍 📮 📅 🏷️ ❤️ 🏠 📚 🔖 ℹ️'
+const SYSTEM_FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif'
+const EMOJI_FONT_STACK = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif'
 
-type CustomFontConfig = {
-  css: string
-  familyPrefix: string
-}
+async function applyFontFallbackSpans(browserPage: any, customFont: RenderFontConfig | null) {
+  if (!customFont || (!customFont.emojiFallbackCodePoints.length && !customFont.systemFallbackCodePoints.length)) return
 
-function getFontFormat(ext: string) {
-  if (ext === '.otf') return 'opentype'
-  if (ext === '.woff2') return 'woff2'
-  if (ext === '.woff') return 'woff'
-  return 'truetype'
-}
+  await browserPage.evaluate(({ emojiCodePoints, systemCodePoints }) => {
+    const emoji = new Set<number>(emojiCodePoints)
+    const system = new Set<number>(systemCodePoints)
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+    const nodes: Text[] = []
+    while (walker.nextNode()) nodes.push(walker.currentNode as Text)
 
-function getFontMimeType(ext: string) {
-  if (ext === '.otf') return 'font/otf'
-  if (ext === '.woff2') return 'font/woff2'
-  if (ext === '.woff') return 'font/woff'
-  return 'font/ttf'
-}
+    const Segmenter = (Intl as any).Segmenter
+    const segmenter = Segmenter ? new Segmenter('zh-CN', { granularity: 'grapheme' }) : null
+    for (const node of nodes) {
+      const value = node.nodeValue || ''
+      const segments = segmenter ? Array.from(segmenter.segment(value), (item: any) => item.segment) : Array.from(value)
+      if (!segments.some((segment: string) => Array.from(segment).some(character => {
+        const codePoint = character.codePointAt(0)!
+        return emoji.has(codePoint) || system.has(codePoint)
+      }))) continue
 
-function buildCustomFontConfig(ctx: Context, fontPath?: string | null): CustomFontConfig | null {
-  if (!fontPath) return null
-  const resolvedPath = isAbsolute(fontPath) ? fontPath : resolve(fontPath)
-  if (!existsSync(resolvedPath)) {
-    ctx.logger.warn(`自定义字体不存在: ${resolvedPath}`)
-    return null
-  }
-
-  try {
-    const buffer = readFileSync(resolvedPath)
-    const ext = extname(resolvedPath).toLowerCase()
-    const format = getFontFormat(ext)
-    const mime = getFontMimeType(ext)
-    const css = `@font-face {
-  font-family: '${CUSTOM_FONT_FAMILY}';
-  src: url('data:${mime};base64,${buffer.toString('base64')}') format('${format}');
-  font-weight: normal;
-  font-style: normal;
-}
-`
-    return {
-      css,
-      familyPrefix: `'${CUSTOM_FONT_FAMILY}', `,
+      const fragment = document.createDocumentFragment()
+      for (const segment of segments as string[]) {
+        const codePoints = Array.from(segment, character => character.codePointAt(0)!)
+        const className = codePoints.some(codePoint => system.has(codePoint))
+          ? 'system-font-fallback'
+          : codePoints.some(codePoint => emoji.has(codePoint))
+            ? 'emoji-font-fallback'
+            : ''
+        if (!className) {
+          fragment.append(document.createTextNode(segment))
+          continue
+        }
+        const wrapper = document.createElement('span')
+        wrapper.className = className
+        wrapper.textContent = segment
+        fragment.append(wrapper)
+      }
+      node.parentNode?.replaceChild(fragment, node)
     }
-  } catch (error) {
-    ctx.logger.warn(`加载自定义字体失败: ${resolvedPath} ${error}`)
-    return null
+  }, {
+    emojiCodePoints: customFont.emojiFallbackCodePoints,
+    systemCodePoints: customFont.systemFallbackCodePoints,
+  })
+}
+
+async function waitForRenderFonts(
+  ctx: Context,
+  config: Config,
+  browserPage: any,
+  customFont: RenderFontConfig | null,
+) {
+  const expectedFamily = customFont?.family || ''
+  const diagnostics = await browserPage.evaluate(async ({ expectedFamily, timeout }) => {
+    const fontSet = document.fonts
+    let timedOut = false
+
+    if (expectedFamily) {
+      await Promise.race([
+        fontSet.ready,
+        new Promise<void>((resolve) => window.setTimeout(() => {
+          timedOut = true
+          resolve()
+        }, timeout)),
+      ])
+    }
+
+    const bodyStyle = window.getComputedStyle(document.body)
+    return {
+      timedOut,
+      status: fontSet.status,
+      faceCount: fontSet.size,
+      loadedExpectedFaces: expectedFamily
+        ? Array.from(fontSet).filter(face => face.family.replace(/["']/g, '') === expectedFamily && face.status === 'loaded').length
+        : 0,
+      failedExpectedFaces: expectedFamily
+        ? Array.from(fontSet).filter(face => face.family.replace(/["']/g, '') === expectedFamily && face.status === 'error').length
+        : 0,
+      computedFontFamily: bodyStyle.fontFamily,
+    }
+  }, { expectedFamily, timeout: FONT_READY_TIMEOUT })
+
+  const injectedFaceCount = (customFont?.css.match(/@font-face/g) || []).length
+  if (config.verboseConsoleLog) {
+    ctx.logger.info(
+      `[漫展] 字体渲染诊断 mode=${config.fontMode} family=${expectedFamily || 'system-default'} ` +
+      `source=${customFont?.source || 'system-default'} injectedFaces=${injectedFaceCount} ` +
+      `loadedExpectedFaces=${diagnostics.loadedExpectedFaces} failedExpectedFaces=${diagnostics.failedExpectedFaces} ` +
+      `emojiFallback=${customFont?.emojiFallbackCodePoints.length || 0} systemFallback=${customFont?.systemFallbackCodePoints.length || 0} ` +
+      `ready=${!diagnostics.timedOut} status=${diagnostics.status} computed=${diagnostics.computedFontFamily}`,
+    )
+  }
+
+  if (expectedFamily && (diagnostics.timedOut || !injectedFaceCount || !diagnostics.loadedExpectedFaces || diagnostics.failedExpectedFaces)) {
+    throw new FontConfigurationError(`所选字体「${expectedFamily}」未能在 ${FONT_READY_TIMEOUT / 1000} 秒内完成加载。`, {
+      mode: config.fontMode,
+      family: expectedFamily,
+      source: customFont?.source,
+    })
   }
 }
 
-/**
- * 获取图片的 base64 编码
- */
-async function fetchImageAsBase64(url: string): Promise<string | null> {
-  if (!url) return null
-  try {
-    const response = await fetch(url)
-    if (!response.ok) return null
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    return buffer.toString('base64')
-  } catch {
-    return null
-  }
+function getSourceLabel(source: RenderSource) {
+  return source === 'bilibili'
+    ? '数据来源：B站会员购'
+    : '数据来源：https://www.allcpp.cn 无差别同人站'
 }
 
 /**
@@ -276,9 +313,10 @@ function generateHtml(
   colors: ReturnType<typeof getColors>,
   eventsHtml: string,
   isDarkMode: boolean,
-  customFont: CustomFontConfig | null,
+  customFont: RenderFontConfig | null,
   containerWidth: number = 800,
-  viewportWidth: number = 900
+  viewportWidth: number = 900,
+  source: RenderSource = 'allcpp'
 ): string {
   const totalCount = events.length
   const ongoingCount = events.filter(e => e.ended !== '已结束' && e.ended !== '未开始').length
@@ -295,7 +333,7 @@ function generateHtml(
   })
 
   const fontFaceCss = customFont?.css ?? ''
-  const fontFamily = `${customFont?.familyPrefix ?? ''}${BASE_FONT_STACK}`
+  const fontFamily = customFont ? `'${customFont.family}'` : SYSTEM_FONT_STACK
 
   return `<!DOCTYPE html>
 <html>
@@ -315,6 +353,14 @@ function generateHtml(
       font-family: ${fontFamily};
       padding: 10px;
       color: ${colors.textPrimary};
+    }
+
+    .emoji-font-fallback {
+      font-family: ${EMOJI_FONT_STACK};
+    }
+
+    .system-font-fallback {
+      font-family: ${SYSTEM_FONT_STACK};
     }
     
     .main-container {
@@ -763,7 +809,7 @@ function generateHtml(
     
     <div class="footer">
       <span class="footer-timestamp">${timestamp}</span>
-      <span class="footer-source">数据来源：https://www.allcpp.cn 无差别同人站</span>
+      <span class="footer-source">${getSourceLabel(source)}</span>
       <span class="footer-plugin">generated by koishi-plugin-anime-convention-lizard-vincentzyu-fork</span>
     </div>
   </div>
@@ -784,18 +830,22 @@ export async function renderEventsImage(
   containerWidth: number = 800,
   viewportWidth: number = 900,
   imageDisplayMode: 'none' | 'compact' | 'gradient' | 'flip-horizontal' | 'full-blur-bg-text' = 'compact',
-  customFontPath?: string | null
+  config: Config,
+  source: RenderSource = 'allcpp',
+  retryAttempt = 0,
 ): Promise<string> {
+  const colors = getColors(enableDarkMode, source)
+  const fontContent = `${STATIC_RENDER_TEXT}\n${title}\n${JSON.stringify(events)}`
+  const customFont = await resolveRenderFont(ctx, config, fontContent)
   const browserPage = await getPageWithRetry(ctx)
-  const colors = getColors(enableDarkMode)
-  const customFont = buildCustomFontConfig(ctx, customFontPath ?? null)
+  let renderError: unknown
   
   try {
     // 并行获取所有图片
     let logoBase64List: (string | null)[] = []
     if (imageDisplayMode !== 'none') {
-      logoBase64List = await Promise.all(
-        events.map(event => fetchImageAsBase64(event.appLogoPicUrl))
+      logoBase64List = await mapWithConcurrency(
+        events, 4, event => fetchImageAsBase64(event.appLogoPicUrl),
       )
     }
     
@@ -805,7 +855,7 @@ export async function renderEventsImage(
     ).join('')
     
     // 生成 HTML
-    const htmlContent = generateHtml(title, events, colors, eventsHtml, enableDarkMode, customFont, containerWidth, viewportWidth)
+    const htmlContent = generateHtml(title, events, colors, eventsHtml, enableDarkMode, customFont, containerWidth, viewportWidth, source)
     
     // 设置视口
     await browserPage.setViewport({
@@ -816,6 +866,8 @@ export async function renderEventsImage(
     
     // 设置内容
     await browserPage.setContent(htmlContent)
+    await applyFontFallbackSpans(browserPage, customFont)
+    await waitForRenderFonts(ctx, config, browserPage, customFont)
     
     // 等待页面加载完成
     await browserPage.waitForSelector('body', { timeout: 10000 })
@@ -848,11 +900,27 @@ export async function renderEventsImage(
     
     return screenshot as string
   } catch (error) {
-    ctx.logger.error(`Failed to render events image: ${error}`)
-    throw error
+    renderError = error
+    if (config.verboseConsoleLog) ctx.logger.error(`Failed to render events image: ${error}`)
   } finally {
-    await browserPage.close()
+    try {
+      await browserPage.close()
+    } catch (error) {
+      if (!renderError) throw error
+      ctx.logger.warn(`Failed to close events image page after render error: ${error}`)
+    }
   }
+
+  if (isRecoverablePuppeteerError(renderError) && retryAttempt === 0) {
+    ctx.logger.warn('Puppeteer 页面已关闭，等待共享浏览器重启后重试图片渲染。')
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return renderEventsImage(
+      ctx, title, events, imageType, screenshotQuality, enableDarkMode,
+      containerWidth, viewportWidth, imageDisplayMode, config, source, retryAttempt + 1,
+    )
+  }
+
+  throw renderError
 }
 
 /**
@@ -863,9 +931,10 @@ function generateDetailHtml(
   logoBase64: string | null,
   colors: ReturnType<typeof getColors>,
   isDarkMode: boolean,
-  customFont: CustomFontConfig | null,
+  customFont: RenderFontConfig | null,
   containerWidth: number = 600,
-  viewportWidth: number = 700
+  viewportWidth: number = 700,
+  source: RenderSource = 'allcpp'
 ): string {
   const isOnlineText = typeof event.isOnline === 'string' 
     ? event.isOnline 
@@ -901,9 +970,15 @@ function generateDetailHtml(
   const tagsHtml = tags.length > 0 
     ? tags.map(t => `<span class="tag-item">${t.trim()}</span>`).join('') 
     : `<span style="color:${colors.textSecondary}">-</span>`
+  const extraDetailsHtml = (event.extraDetails || []).map((detail) => `
+        <div class="info-row">
+          <span class="info-icon">${detail.icon || 'ℹ️'}</span>
+          <span class="info-label">${detail.label}</span>
+          <span class="info-value">${detail.value || '-'}</span>
+        </div>`).join('')
 
   const fontFaceCss = customFont?.css ?? ''
-  const fontFamily = `${customFont?.familyPrefix ?? ''}${BASE_FONT_STACK}`
+  const fontFamily = customFont ? `'${customFont.family}'` : SYSTEM_FONT_STACK
 
   return `<!DOCTYPE html>
 <html>
@@ -927,6 +1002,14 @@ function generateDetailHtml(
     
     body {
       padding: 10px;
+    }
+
+    .emoji-font-fallback {
+      font-family: ${EMOJI_FONT_STACK};
+    }
+
+    .system-font-fallback {
+      font-family: ${SYSTEM_FONT_STACK};
     }
     
     .main-container {
@@ -1186,6 +1269,7 @@ function generateDetailHtml(
           <span class="info-label">标签</span>
           <span class="info-value tags-container">${tagsHtml}</span>
         </div>
+        ${extraDetailsHtml}
       </div>
       
       <div class="stats-section">
@@ -1210,7 +1294,7 @@ function generateDetailHtml(
     
     <div class="footer">
       <span class="footer-timestamp">${timestamp}</span>
-      <span class="footer-source">数据来源：https://www.allcpp.cn 无差别同人站</span>
+      <span class="footer-source">${getSourceLabel(source)}</span>
       <span class="footer-plugin">generated by koishi-plugin-anime-convention-lizard-vincentzyu-fork</span>
     </div>
   </div>
@@ -1227,17 +1311,21 @@ export async function renderEventDetailImage(
   imageType: 'png' | 'jpeg' | 'webp' = 'png',
   screenshotQuality: number = 80,
   enableDarkMode: boolean = false,
-  customFontPath?: string | null
+  config: Config,
+  source: RenderSource = 'allcpp',
+  retryAttempt = 0,
 ): Promise<string> {
-  const browserPage = await getPageWithRetry(ctx)
   const viewportWidth = 700
-  const colors = getColors(enableDarkMode)
-  const customFont = buildCustomFontConfig(ctx, customFontPath ?? null)
+  const colors = getColors(enableDarkMode, source)
+  const fontContent = `${STATIC_RENDER_TEXT}\n${JSON.stringify(event)}`
+  const customFont = await resolveRenderFont(ctx, config, fontContent)
+  const browserPage = await getPageWithRetry(ctx)
+  let renderError: unknown
   
   try {
     // 获取封面图片的 base64
     const logoBase64 = await fetchImageAsBase64(event.appLogoPicUrl)
-    const htmlContent = generateDetailHtml(event, logoBase64, colors, enableDarkMode, customFont, 600, viewportWidth)
+    const htmlContent = generateDetailHtml(event, logoBase64, colors, enableDarkMode, customFont, 600, viewportWidth, source)
     
     await browserPage.setViewport({
       width: viewportWidth,
@@ -1246,6 +1334,8 @@ export async function renderEventDetailImage(
     })
     
     await browserPage.setContent(htmlContent)
+    await applyFontFallbackSpans(browserPage, customFont)
+    await waitForRenderFonts(ctx, config, browserPage, customFont)
     await browserPage.waitForSelector('body', { timeout: 10000 })
     
     const contentHeight = await browserPage.evaluate(() => {
@@ -1271,9 +1361,22 @@ export async function renderEventDetailImage(
     const screenshot = await browserPage.screenshot(screenshotOptions)
     return screenshot as string
   } catch (error) {
-    ctx.logger.error(`Failed to render event detail image: ${error}`)
-    throw error
+    renderError = error
+    if (config.verboseConsoleLog) ctx.logger.error(`Failed to render event detail image: ${error}`)
   } finally {
-    await browserPage.close()
+    try {
+      await browserPage.close()
+    } catch (error) {
+      if (!renderError) throw error
+      ctx.logger.warn(`Failed to close event detail image page after render error: ${error}`)
+    }
   }
+
+  if (isRecoverablePuppeteerError(renderError) && retryAttempt === 0) {
+    ctx.logger.warn('Puppeteer 页面已关闭，等待共享浏览器重启后重试详情图片渲染。')
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return renderEventDetailImage(ctx, event, imageType, screenshotQuality, enableDarkMode, config, source, retryAttempt + 1)
+  }
+
+  throw renderError
 }
