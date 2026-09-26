@@ -33,8 +33,16 @@
 - 📺 **双数据源**：B站会员购支持漫展、展览、演出与本地生活活动范围。
 
 ## 🔍 预览
-![漫展列表预览](doc/images/allcpp.list.png)
-![漫展详情预览](doc/images/allcpp.detail.png)
+
+### 🌐 无差别同人站（AllCPP）
+
+![AllCPP 漫展列表预览](doc/images/preview/allcpp.list.png)
+![AllCPP 漫展详情预览](doc/images/preview/allcpp.detail.png)
+
+### 📺 哔哩哔哩会员购（Bilibili）
+
+![B站漫展列表预览](doc/images/preview/bilibili.list.png)
+![B站漫展详情预览](doc/images/preview/bilibili.detail.png)
 
 ---
 
