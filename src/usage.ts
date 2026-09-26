@@ -34,6 +34,12 @@ export const usage = `
   </a>
 </p>
 
+<h2>💬 交流反馈</h2>
+<p>🐛 Bug 反馈 / 💡 建议 / 👨‍💻 插件开发交流，欢迎加群：</p>
+<p><del>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>259248174</b>   🎉（这个群G了）</del></p>
+<p>💬 插件使用问题 / 🐛 Bug反馈 / 👨‍💻 插件开发交流，欢迎加入QQ群：<b>1085190201</b> 🎉</p>
+<p>💡 在群里直接艾特我，回复的更快哦~ ✨</p>
+
 <p><code>漫展</code> 对接无差别同人站，支持城市与作品关键词；<code>漫展B</code> 对接 B站会员购，只支持地区活动查询。</p>
 
 <details style="${detailsStyle}">
@@ -61,13 +67,6 @@ export const usage = `
 <p><b>Puppeteer：</b>仅图片查询和图片详情需要。启用图片指令后，请确保 Koishi 已加载 Puppeteer 服务。</p>
 <p><b>图片设置：</b>默认使用内置 npm 霞鹜文楷；也可改为 Release 等宽版、服务端自定义字体绝对路径或浏览器系统字体。Release 首次生图下载到 Koishi 根目录 <code>data/fonts</code>，不可用时会明确报错。</p>
 <p><b>数据连接：</b>两套查询均直接请求数据源，不需要配置本地代理、端口或 API 地址。</p>
-</div>
-</details>
-
-<details style="${detailsStyle}">
-<summary style="${summaryStyle}"><b>💬 反馈与支持</b></summary>
-<div style="${detailsBodyStyle}">
-<p>Bug、建议和开发交流可前往 <a href="https://github.com/VincentZyuApps/koishi-plugin-anime-convention-lizard-vincentzyu-fork" target="_blank">GitHub fork</a>，或加入 QQ 群 <b>1085190201</b>。</p>
 </div>
 </details>
 `

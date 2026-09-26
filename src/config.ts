@@ -56,8 +56,8 @@ export const Config: Schema<Config> = Schema.intersect([
       '⚠️ 所选字体不可用时，图片查询会明确报错；请修复配置或切换其他模式。',
     ].join('<br/>')),
     customFontPath: Schema.string().default('').role('textarea', { rows: [2, 5] }).description('📁 自定义字体绝对路径，仅选择【custom-path】时生效；支持 .ttf、.otf、.woff、.woff2。'),
-    allowEmojiFontFallback: Schema.boolean().default(true).experimental().description('🧪 [allowEmojiFontFallback] 选定字体缺少 emoji 时，是否仅用系统 emoji 字体补字；默认开启。'),
-    allowSystemFontFallback: Schema.boolean().default(false).experimental().description('🧪 [allowSystemFontFallback] 选定字体缺少普通字符时，是否用系统默认字体补字；默认关闭。开启后也可补充未被 emoji 专用补字处理的 emoji。'),
+    allowEmojiFontFallback: Schema.boolean().default(true).experimental().description('🧪 选定字体缺少 emoji 时，是否仅用系统 emoji 字体补字；默认开启。'),
+    allowSystemFontFallback: Schema.boolean().default(false).experimental().description('🧪 选定字体缺少普通字符时，是否用系统默认字体补字；默认关闭。开启后也可补充未被 emoji 专用补字处理的 emoji。'),
     enableDarkMode: Schema.boolean().default(false).description('🌙 是否启用深色图片主题'),
     imageType: Schema.union([
       Schema.const('png').description('🟦 PNG 格式'),
