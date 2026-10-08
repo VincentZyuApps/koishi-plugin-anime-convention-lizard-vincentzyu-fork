@@ -6,8 +6,13 @@
 *.gif -text
 *.webp -text
 
-# 全国行政区划映射为生成数据，不计入 GitHub 语言统计。
 src/area.ts linguist-generated=true
 
-# 将说明文档（包括 README）计入 GitHub 的 Markdown 语言统计。
-*.md linguist-detectable=true linguist-documentation=false
+# 📚 将所有 Markdown 与 README 纳入 GitHub Linguist 语言统计
+README.md linguist-language=Markdown linguist-detectable=true linguist-documentation=false
+readme.md linguist-language=Markdown linguist-detectable=true linguist-documentation=false
+*.md linguist-language=Markdown linguist-detectable=true linguist-documentation=false
+docs/**/*.md linguist-language=Markdown linguist-detectable=true linguist-documentation=false
+
+# ⚙️ 将配置文件本身纳入 GitHub Linguist 语言统计
+.gitattributes linguist-language=gitattributes linguist-detectable=true linguist-documentation=false -linguist-vendored -linguist-generated
